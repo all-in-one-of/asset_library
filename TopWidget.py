@@ -62,3 +62,6 @@ class TopWidget(QWidget):
         layout.addWidget(self.nodeInfo)
         layout.addWidget(self.opNodeLabel)
         layout.addWidget(self.opNodeInfo)
+
+    def UpdateDirectoryInfo(self,newDir):
+        self.dirInfo.setText(newDir)

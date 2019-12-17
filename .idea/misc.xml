@@ -16,17 +16,10 @@
       </profile-state>
     </entry>
   </component>
-  <component name="ProjectLevelVcsManager" settingsEditedManually="false">
-    <OptionsSetting value="true" id="Add" />
-    <OptionsSetting value="true" id="Remove" />
-    <OptionsSetting value="true" id="Checkout" />
-    <OptionsSetting value="true" id="Update" />
-    <OptionsSetting value="true" id="Status" />
-    <OptionsSetting value="true" id="Edit" />
-    <ConfirmationsSetting value="0" id="Add" />
-    <ConfirmationsSetting value="0" id="Remove" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 2.7 (Universal Constructor)" project-jdk-type="Python SDK" />
+  <component name="PyPackaging">
+    <option name="earlyReleasesAsUpgrades" value="true" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 2.7.5 (C:\Program Files\Side Effects Software\Houdini 15.0.393\python27\python.exe)" project-jdk-type="Python SDK" />
   <component name="masterDetails">
     <states>
       <state key="ScopeChooserConfigurable.UI">

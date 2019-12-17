@@ -1,15 +1,19 @@
+from PicButton import PicButton
+
 __author__ = 'eric'
 
 #import hou
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4 import QtGui
-from PyQt4 import QtCore
-import sys
-import os
-import simplejson as json
+from PySide.QtGui import *
+from PySide.QtCore import *
+from PySide import QtGui
+from PySide import QtCore
+import AssetObj
+reload(AssetObj)
 from AssetObj import *
-import hou
+import AssetViewerModel
+import imghdr
+from PIL import Image
+import io
 
 mainColor = 45
 buttonHeight = 240
@@ -17,17 +21,15 @@ buttonWidth = 320
 buttonHeight = 120
 buttonWidth = 160
 
-#############################
-class ScrollController(QObject):
-    sendObj = pyqtSignal(list)
-    sendAllAssetObjs = pyqtSignal(list)
-    def __init__(self,scrollArea,model):
-        super(QObject,self).__init__()
+
+class BaseScrollController(QObject):
+    def __init__(self, scrollArea, model):
+        super(BaseScrollController, self).__init__()
         self.nameField = None
         self.filePathField = None
 
         self.model = model
-        self.lastPicButton = None
+        self.lastPicButton = None  # type: PicButton
         self.curPicButtons = []
         self.scrollArea = scrollArea
 
@@ -45,8 +47,126 @@ class ScrollController(QObject):
 
         self.UnpackDirectory()
 
-    def update(self,picButton):
+        def UnpackDirectory(self):
+            self.ClearView()
+
+            self.scrollAreaWidgetContents = QtGui.QWidget()
+            self.scrollAreaWidgetContents.setAccessibleName("grid widget")
+            self.scrollArea.setAccessibleName("scroll area")
+            self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+            self.gridLayout = QtGui.QGridLayout(self.scrollAreaWidgetContents)
+            curDir = self.model.directory
+
+            if curDir[-1] != "/":
+                curDir += "/"
+
+            self.listOfPicButtons = []
+            self.listOfAssetObjs = []
+
+            listOfFiles = []
+            if self.model.mode == AssetViewerModel.AssetModes.GEO:
+                listOfFiles = [f for f in os.listdir(curDir) if (f.endswith('.txt'))]
+            elif self.model.mode == AssetViewerModel.AssetModes.SIMPLETEXTURE:
+                def passes(f):
+                    pass
+                    """
+                    if not os.path.isfile(f):
+                        return False"""
+                    if len(f.split('.')) == 1:
+                        return False
+                    if imghdr.what(curDir + f) is None and not f.endswith('.tga'):
+                        # print f
+                        return False
+                    # f os.path.splitext(ntpath.basename(f))[0]
+                    # test if normal
+                    return True
+
+                listOfFiles = [f for f in os.listdir(curDir) if passes(f)]
+
+#############################
+class ScrollController(QObject):
+    sendObj = QtCore.Signal(list)
+    sendAllAssetObjs = QtCore.Signal(list)
+
+    def __init__(self, scrollArea, model, inHoudini = False):
+        """
+
+        :param scrollArea:
+        :param model: AssetViewModel
+        :return:
+        """
+        super(QObject, self).__init__()
+        self.nameField = None
+        self.filePathField = None
+
+        self.model = model
+        self.lastPicButton = None  # type: PicButton
+        self.curPicButtons = []
+        self.scrollArea = scrollArea
+
+        self.checkNode = False
+        self.promptUpdate = True
+        self.updateOnSelect = True
+
+        self.contents = QtGui.QWidget()
+        self.tagsToFilterOut = []
+        self.listOfTags = []
+        self.listOfAssetObjs = []
+        self.listOfPicButtons = []
+        self.selectedItemNum = -1
+        self.scrollAreaWidgetContents = None
+
+        self.UnpackDirectory()
+
+
+    def GetShopNode(self):
+        import hou
+        node = hou.node('/obj/textureShop')
+        if node is None:
+            obj = hou.node('/obj')
+            node = obj.createNode('shopnet')
+            node.setName('textureShop')
+
+        return node
+
+    def GetMaterialNode(self):
+        shopNode = self.GetShopNode()
+
+        lastPicButton = self.lastPicButton
+        textureObj = lastPicButton.assetObj
+        fileName = textureObj.fileName.split('.')[0]
+        folderName = textureObj.folder.split('/')[-1]
+        path = lastPicButton.assetObj.path
+
+        nodeName = folderName + '-' + fileName
+        theNode = None
+        for c in shopNode.children():
+            if c.name() == nodeName:
+                theNode = c
+
+        if theNode is None:
+            theNode = shopNode.createNode('surfacemodel')
+            theNode.setName(nodeName)
+            theNode.parm('ogl_alpha').set(1)
+            theNode.parm('ogl_diffr').set(1)
+            theNode.parm('ogl_diffg').set(1)
+            theNode.parm('ogl_diffb').set(1)
+            theNode.parm('ogl_tex1').set(path)
+
+        return theNode
+
+
+    def UpdateNode(self):
+        pass
+        if self.model.mode == AssetViewerModel.AssetModes.GEO:
+            pass
+        elif self.model.mode == AssetViewerModel.AssetModes.SIMPLETEXTURE:
+            pass
+
+    def OnClick(self, picButton):
+        import hou
         if self.checkNode:
+            print "ok"
             if self.model.operatorNode != hou.selectedNodes()[0]:
                 if self.promptUpdate:
                     self.updateDialog = QMessageBox()
@@ -85,18 +205,21 @@ class ScrollController(QObject):
                 self.selectedItemNum = b.num
                 b.setSelected()
 
-            self.sendObj.emit([self.lastPicButton.assetObj])
             if self.model.node is not None:
-                self.model.node.parm('directory').set(self.lastPicButton.assetObj.folder + '/')
-                self.model.node.parm('switch').set(self.lastPicButton.num)
-                #print self.lastPicButton.num
+
                 opNode = self.model.operatorNode
+                print opNode.type().name()
                 if opNode is not None and opNode.type().name() == 'SimpleCookie':
+                    self.model.node.parm('directory').set(self.lastPicButton.assetObj.folder + '/')
+                    self.model.node.parm('switch').set(self.lastPicButton.num)
+
                     opNode.parm('menu').set(4)
                     opNode.parm('object').set(2)
+                elif opNode.type().name() == 'material':
+                    matNode = self.GetMaterialNode()
+                    self.model.node.parm('shop_materialpath1').set(matNode.path())
+
                 self.sendObj.emit([self.lastPicButton.assetObj])
-
-
 
     def createOuterFrame(self):
         outerFrame = QWidget()
@@ -109,10 +232,8 @@ class ScrollController(QObject):
         outerFrame.setStyleSheet('background-color: rgb(20, 20, 20)')
         return outerFrame
 
+
     def UnpackDirectory(self):
-        print "unpack directory"
-
-
         self.ClearView()
 
         self.scrollAreaWidgetContents = QtGui.QWidget()
@@ -128,36 +249,82 @@ class ScrollController(QObject):
 
         self.listOfPicButtons = []
         self.listOfAssetObjs = []
-        listOfFiles = [ f for f in os.listdir(curDir) if (f.endswith('.txt')) ]
-        for i in range( len(listOfFiles) ):
-            f = open(curDir+listOfFiles[i],'r')
-            obj = json.load(f)
-            f.close()
 
-            curAssetObj =  AssetObj(curDir+listOfFiles[i])
-            self.listOfAssetObjs.append( curAssetObj )
+        listOfFiles = []
+        if self.model.mode == AssetViewerModel.AssetModes.GEO:
+            listOfFiles = [ f for f in os.listdir(curDir) if (f.endswith('.txt')) ]
+        elif self.model.mode == AssetViewerModel.AssetModes.SIMPLETEXTURE:
+            def passes(f):
+                pass
+                """
+                if not os.path.isfile(f):
+                    return False"""
+                if len(f.split('.')) == 1:
+                    return False
+                if imghdr.what(curDir + f) is None and not f.endswith('.tga'):
+                    #print f
+                    return False
+                #f os.path.splitext(ntpath.basename(f))[0]
+                #test if normal
+                return True
 
-            picPath = curAssetObj.generalDict['pic']
-            geoPath = curAssetObj.generalDict['geo']
-            try:
-                name = curAssetObj.generalDict['name']
-            except KeyError:
-                name = '_____'
 
-            curTags = curAssetObj.tags
-            self.listOfTags += curTags
+            listOfFiles = [ f for f in os.listdir(curDir) if passes(f) ]
 
-            pic = QtGui.QPixmap()
-            pic.load(picPath)
-            qSize = QSize(buttonWidth,buttonHeight)
-            pic = pic.scaled(qSize, transformMode = Qt.SmoothTransformation)
+
+        curTags = []
+        for i in range(len(listOfFiles)):
+            if self.model.mode == AssetViewerModel.AssetModes.GEO:
+                f = open(curDir+listOfFiles[i], 'r')
+                obj = json.load(f)
+                f.close()
+
+                curAssetObj =  AssetObj(curDir+listOfFiles[i])
+                self.listOfAssetObjs.append( curAssetObj )
+
+                picPath = curAssetObj.generalDict['pic']
+                geoPath = curAssetObj.generalDict['geo']
+                try:
+                    name = curAssetObj.generalDict['name']
+                except KeyError:
+                    name = '_____'
+
+                curTags = curAssetObj.tags
+                self.listOfTags += curTags
+
+                pic = QtGui.QPixmap()
+                pic.load(picPath)
+                qSize = QSize(buttonWidth, buttonHeight)
+                pic = pic.scaled(qSize, transformMode=Qt.SmoothTransformation)
+
+            elif self.model.mode == AssetViewerModel.AssetModes.SIMPLETEXTURE:
+                curAssetObj = SimpleTextureAssetObject(curDir+listOfFiles[i])
+                self.listOfAssetObjs.append( curAssetObj )
+
+                picPath,geoPath,name = '_____','_____','_____'
+
+                fullPath = curDir+listOfFiles[i]
+                tempImage = Image.open(fullPath)  # type: Image.Image
+
+                imgByteArr = io.BytesIO()
+                tempImage.save(imgByteArr, format='PNG')
+                imgByteArr = imgByteArr.getvalue()
+
+                pic = QtGui.QPixmap()
+                pic.loadFromData(imgByteArr)
+
+                qSize = QSize(buttonWidth,buttonHeight)
+                pic = pic.scaled(qSize, transformMode=Qt.SmoothTransformation)
+
 
             outerFrame = self.createOuterFrame()
-            button = PicButton(curDir+listOfFiles[i],curAssetObj,i,pic,name,geoPath,picPath,curTags,outerFrame,self)
+            button = PicButton(curDir + listOfFiles[i], curAssetObj, i, pic, name, geoPath, picPath, curTags, outerFrame, self)
             button.setParent(outerFrame)
 
             self.listOfPicButtons.append(button)
+
             #self.gridLayout.addWidget(outerFrame, i/2, i%2, 1, 1)
+
 
         self.listOfTags = list(set(self.listOfTags))
 
@@ -175,22 +342,19 @@ class ScrollController(QObject):
             pass
 
     def UpdateView(self):
-        print "udpateview"
-
         alphaPBs = []
         intPBs = []
 
         for pB in self.listOfPicButtons:
-            print pB.fileName
             try:
-               test = int( pB.fileName )
-               intPBs.append( pB )
+               test = int(pB.fileName)
+               intPBs.append(pB)
             except ValueError:
-                alphaPBs.append( pB )
+                alphaPBs.append(pB)
 
         self.listOfPicButtons = alphaPBs + intPBs
         try:
-            self.listOfPicButtons.sort( key = lambda x: int(x.fileName) )
+            self.listOfPicButtons.sort(key=lambda x: int(x.fileName))
         except ValueError:
             pass
 
@@ -203,90 +367,20 @@ class ScrollController(QObject):
             pB.outerFrame.setParent(None)
 
         curItemNum = 0
-        for i,picButton in enumerate(self.listOfPicButtons):
+        for i, picButton in enumerate(self.listOfPicButtons):
             curTags = picButton.tags
-            if set(curTags).isdisjoint( set(self.tagsToFilterOut) ):
+            if set(curTags).isdisjoint(set(self.tagsToFilterOut)):
                 picButton.num = curItemNum
                 newWidget = QWidget()
                 self.gridLayout.addWidget(picButton.outerFrame, curItemNum/3, curItemNum%3, 1, 1)
                 curItemNum += 1
 
-        for i in range( self.gridLayout.rowCount() ):
-            self.gridLayout.setRowMinimumHeight(i,buttonHeight)
-            self.gridLayout.setRowStretch(i,0)
+        for i in range(self.gridLayout.rowCount()):
+            self.gridLayout.setRowMinimumHeight(i, buttonHeight)
+            self.gridLayout.setRowStretch(i, 0)
 
 
 ###############################################################
-class PicButton(QAbstractButton):
-    def __init__(self, jsonPath, assetObj, num, pixmap, nameField, filePathField, picPath, tags, frame, controller):
-        super(PicButton, self).__init__()
-        self.doSize()
-        self.jsonPath = jsonPath
-        self.tags = tags
-        self.curNum = num
-        self.assetObj = assetObj
-        self.fileName = assetObj.fileName
-        self.pixmap = pixmap
-        self.timer = QTimer()
-        self.timer.setSingleShot(True)
-        #self.timer.timeout.connect(self.clicked.emit)
-        self.nameField = nameField
-        self.filePathField = filePathField
-        self.outerFrame = frame
-        self.controller = controller
-        self.picPath = picPath
-        self.isSelected = False
 
-        self.pressed.connect(self.update)
-        self.released.connect(self.update)
-
-    def doSize(self):
-        self.setMinimumHeight(buttonHeight)
-        self.setMinimumWidth(buttonWidth)
-        self.setMaximumHeight(buttonHeight)
-        self.setMaximumWidth(buttonWidth)
-        self.setContentsMargins(10,10,10,10)
-        self.setGeometry(3, 3, 100, 100)
-
-    def setSelected(self):
-        self.outerFrame.setStyleSheet('background-color: rgb(235, 235, 155);')
-
-    def setUnselected(self):
-        self.outerFrame.setStyleSheet('background-color: rgb(235, 235, 155);')
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-    def checkDoubleClick(self):
-        print "ok"
-        if self.timer.isActive():
-            #self.doubleClicked.emit()
-            self.timer.stop()
-            print "something"
-        else:
-            self.timer.start(250)
-            pass
-
-    def mousePressEvent (self, event):
-        modifiers = QtGui.QApplication.keyboardModifiers()
-        controller = self.controller
-        if modifiers == QtCore.Qt.ControlModifier:
-            self.isSelected = False
-            if controller.curPicButtons.count(self) > 0:
-                controller.curPicButtons.remove(self)
-        elif modifiers == QtCore.Qt.ShiftModifier:
-            self.isSelected = True
-            if controller.curPicButtons.count(self) == 0:
-                controller.curPicButtons.append(self)
-        else:
-            self.isSelected = True
-            controller.curPicButtons = []
-            controller.curPicButtons.append(self)
-
-        self.controller.update(self)
-        self.checkDoubleClick()
-
-    def paintEvent(self, event):
-        pix = self.pixmap
-        painter = QPainter(self)
-        painter.drawPixmap(event.rect(), pix)
+if __name__ == "__main__":
+    pass

@@ -15,7 +15,6 @@ class SecondWidget(QWidget):
     def __init__(self,model):
         super(SecondWidget,self).__init__()
         self.model = model
-        print ("second widget constructor")
 
         m = 2
 
@@ -77,8 +76,6 @@ class MapWindow(QWidget):
         self.show()
 
     def Resave(self):
-        print "ok"
-
         self.close()
 
 

@@ -10,8 +10,8 @@ import simplejson as json
 import AssetViewer
 
 reload(AssetViewer)
-import AssetLibrary_InfoWidget
-reload(AssetLibrary_InfoWidget)
+import InfoWidget
+reload(InfoWidget)
 from AssetObj import *
 
 class TagsWidget(QFrame):
@@ -19,8 +19,6 @@ class TagsWidget(QFrame):
         QFrame.__init__(self)
         self.assetViewer = assetViewer
         assetViewer.sendAllAssetObjs.connect(self.receiveAssetObjs)
-
-
 
         self.setStyleSheet( 'background-color: rgb(35,35,35); color: rgb(255,255,255); border: 2px solid; border-color: rgb(150,150,150); border-radius: 10px  ')
         self.layout = QBoxLayout(2,self)
@@ -81,7 +79,6 @@ class TagButton(QPushButton):
 
         self.setText(tagText)
         self.resize(100,100)
-
 
         self.activeStyleString = """background-color: rgb(55, 55, 55); color: rgb(255,255,255); border: 1px solid white; border-radius: 3px """
         self.inactiveStyleString = """background-color: rgb(90, 90, 90); color: rgb(120,120,120); border: 1px rgb(90,90,90); border-radius: 3px"""

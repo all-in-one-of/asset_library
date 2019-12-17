@@ -15,6 +15,67 @@ def eraseBorder(listOfWidgets = []):
         pass
         w.setStyleSheet('border: 0px; background-color: rgb(20,20,20); color: rgb(255,255,255)')
 
+
+class TextureInfoWidget(QFrame):
+    def __init__(self,assetViewer):
+        super(TextureInfoWidget,self).__init__()
+
+        self.width = None
+        self.height = None
+
+        self.assetViewer = assetViewer
+        assetViewer.sendObj.connect(self.UpdateFields)
+
+        self.layout = QtGui.QFormLayout(self)
+        self.setObjectName('top')
+        self.setStyleSheet('QFrame#top {background-color: rgb(20,20,20); color: rgb(255,255,255); border: 2px solid rgb(150,150,150); border-radius: 10px}')
+
+        self.generalLabel = QLabel("Texture: ")
+        self.generalField = QLabel(" ")
+
+        self.tagsLabel = QLabel("Tags: ")
+        self.tagsField = QLabel(" ")
+
+        self.tagButton = QPushButton('Edit selected tags')
+        self.tagButton.setStyleSheet('background-color: rgb(20,20,20); color: white')
+        self.tagButton.update()
+        self.tagButton.pressed.connect(self.EditTags)
+
+        self.layout.addRow(self.generalLabel,self.generalField)
+        self.layout.addRow(self.tagsLabel,self.tagsField)
+
+        self.layout.addRow(self.tagButton)
+
+        eraseBorder([self.generalField,self.generalLabel,self.tagsField,self.tagsLabel])
+
+    def EditTags(self):
+        self.curEditWindow = EditWindow(self.assetObj,self.tagsString,self.assetViewer)
+        self.curEditWindow.show()
+
+    def UpdateFields(self,singletonList):
+        self.assetObj = singletonList[0]
+        assetObj = self.assetObj # type : AssetObj.SimpleTextureAssetObject
+
+        resolutionString = "{}x{}".format(assetObj.width,assetObj.height)
+
+        generalFieldString = 'TextureName: ' + str(1) + '   resolution: ' + resolutionString + '    hasNormal: False'
+        self.generalField.setText(generalFieldString)
+
+        tagsList = assetObj.tags
+        tagsString = ''
+        if tagsList == []:
+            tagsString = 'No tags found!'
+        else:
+            if type(tagsList) is list:
+                tagsString = [ t + '    ' for t in tagsList ]
+                tagsString = ''.join(tagsString)
+            else:
+                tagsString = [ t + '    ' for t in tagsList.split(' ')]
+                tagsString = ''.join(tagsString)
+
+        self.tagsField.setText(tagsString)
+        self.tagsString = tagsString
+
 class InfoWidget(QFrame):
     def __init__(self,assetViewer):
         super(InfoWidget,self).__init__()
@@ -64,7 +125,7 @@ class InfoWidget(QFrame):
         except KeyError:
             highPolyObj = "None"
 
-        generalFieldString = 'geoFileName: ' + str(geoFileName) + '   highPolyObjType: ' + str(highPolyObj)
+        generalFieldString = 'GeoFileName: ' + str(geoFileName) + '   highPolyObjType: ' + str(highPolyObj)
         self.generalField.setText(generalFieldString)
 
         tagsList = assetObj.tags
@@ -114,7 +175,7 @@ class EditWindow(QtGui.QWidget):
     def ResaveJSON(self):
         newTags = str(self.tagsField.text())
         tagsList = [ str(t) for t in newTags.split()]
-        print tagsList
+        #print tagsList
 
         f = open(self.assetObj.jsonPath, 'r')
         obj = json.load(f)

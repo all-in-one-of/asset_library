@@ -4,6 +4,8 @@ import hou
 import simplejson as json
 import os
 
+defaultTopDir = 'C:/GeoLibrary'
+
 def SaveLibrary(path,assetObjs):
     path = str(path)
     path = os.path.splitext(path)[0]
@@ -31,6 +33,12 @@ def SetSimple():
     libraryNode.parm('addBottomWidget').set(0)
     libraryNode.parm('addNavigationWidget').set(0)
 
+def SetSimpleGeo():
+    SetSimple()
+    libraryNode = GetLibraryHelperNode()
+    libraryNode.parm('topDir').set(defaultTopDir)
+    libraryNode.parm('assetMode').set(0)
+
 def SetInfo():
     libraryNode = GetLibraryHelperNode()
 
@@ -46,6 +54,12 @@ def SetNavigation():
     libraryNode.parm('addSecondWidget').set(1)
     libraryNode.parm('addBottomWidget').set(1)
     libraryNode.parm('addNavigationWidget').set(1)
+
+def SetNavigationGeo():
+    SetNavigation()
+    libraryNode = GetLibraryHelperNode()
+    libraryNode.parm('topDir').set(defaultTopDir)
+    libraryNode.parm('assetMode').set(0)
 
 def GetLibraryHelperNode():
     def getCurrentNetworkEditorPane():
@@ -79,7 +93,6 @@ def NodeMap(selectedNode):
     nodeToGive = None
     operatorNode = None
 
-    directory = 'C:/GeoLibrary/Basic/'
     if selectedNode.type().name() == 'SimpleCookie':
         nodeToGive = hou.node(selectedNode.path()+'/LIBRARY_PythonLoader1')
         operatorNode = selectedNode
@@ -88,6 +101,10 @@ def NodeMap(selectedNode):
         nodeToGive = selectedNode
         operatorNode = selectedNode
 
-    return (nodeToGive,operatorNode,directory)
+    elif selectedNode.type().name() == 'material':
+        nodeToGive = selectedNode
+        operatorNode = selectedNode
+
+    return (nodeToGive, operatorNode)
 
 

@@ -11,24 +11,31 @@ import simplejson as json
 import AssetViewer
 
 reload(AssetViewer)
-import AssetLibrary_InfoWidget
-reload(AssetLibrary_InfoWidget)
+import InfoWidget
+reload(InfoWidget)
 import AssetLibrary_TagsWidget
 from AssetLibrary_TagsWidget import *
 reload(AssetLibrary_TagsWidget)
-from AssetViewer_SecondWidget import *
+from SecondWidget import *
 from AssetViewerModel import *
-import AssetViewer_TopWidget
-reload(AssetViewer_TopWidget)
-from AssetViewer_TopWidget import *
+import TopWidget
+reload(TopWidget)
+from TopWidget import *
 import AssetLibraryUtils
 reload(AssetLibraryUtils)
 import time
 
 
+
 class NavigationWidget(QWidget):
-    def __init__(self,model,scrollController,topDir = 'C:/GeoLibrary'):
+    def __init__(self,model,topWidget,scrollController,topDir = 'C:/GeoLibrary'):
+        """
+        :param topWidget: AssetViewer_TopWidget.TopWidget
+
+        """
         super(NavigationWidget,self).__init__()
+
+        self.topWidget = topWidget
 
         self.model = model
         self.scrollController = scrollController
@@ -46,7 +53,6 @@ class NavigationWidget(QWidget):
         #self.treeWidget.header().close()
 
         self.curAssetObj = None
-
 
         self.listTree = QTreeWidget()
         self.listTree.setStyleSheet('background-color: rgb(30, 30, 30); color: white;')
@@ -77,18 +83,15 @@ class NavigationWidget(QWidget):
         self.SaveButton.pressed.connect(self.SaveLibrary)
         #self.saveWidget.setMaximumHeight(30)
 
-
         self.AddButton.pressed.connect(self.AddItem)
         self.RemoveButton.pressed.connect(self.RemoveItem)
         self.ClearButton.pressed.connect(self.ClearItems)
-
 
         directoryButton = QPushButton("Change Directory")
         directoryButton.pressed.connect(self.ChangeDirectory)
 
         instantiateDirectoryButton = QPushButton("Instantiate Directory")
         instantiateDirectoryButton.pressed.connect(self.InstantiateDirectory)
-
 
         self.layout.addWidget(self.treeWidget)
         self.layout.addWidget(instantiateDirectoryButton)
@@ -102,6 +105,7 @@ class NavigationWidget(QWidget):
         self.treeItems = []
 
         self.UpdateTreeItems(topDir)
+
         """
         startPath = topDir
         for i,f in enumerate( os.listdir(startPath) ):
@@ -117,9 +121,8 @@ class NavigationWidget(QWidget):
                 self.treeWidget.addTopLevelItem(curItem)"""
 
     def UpdateTreeItems(self,topDir):
-        print topDir
-
         startPath = topDir
+        #print topDir
         self.treeWidget.clear()
 
         self.treeItems = []
@@ -136,8 +139,7 @@ class NavigationWidget(QWidget):
 
                 self.treeWidget.addTopLevelItem(curItem)
 
-        self.model.directory = topDir
-        self.scrollController.UnpackDirectory()
+        #self.model.directory = defaultTopDir
 
     def InstantiateDirectory(self):
         pass
@@ -153,11 +155,11 @@ class NavigationWidget(QWidget):
         if path != "":
             topLevelItemCount = self.listTree.topLevelItemCount()
             assetObjs = [ self.listTree.topLevelItem(i).assetObj for i in range(topLevelItemCount)]
-            print assetObjs
+            #print assetObjs
             AssetLibraryUtils.SaveLibrary(path,assetObjs)
 
     def AddItem(self):
-        print self.curAssetObj
+        #print self.curAssetObj
         if self.curAssetObj is not None:
             path = self.curAssetObj.jsonPath
             relPath = os.path.relpath(path,'C:/GeoLibrary')
@@ -186,7 +188,7 @@ class NavigationWidget(QWidget):
         for i,f in enumerate( os.listdir(curPath) ):
             newPath = curPath+'/'+f
             if os.path.isdir(newPath ):
-                print newPath
+                #print newPath
                 folderName = f
                 newItem = QTreeWidgetItem([folderName])
                 newItem = CustomItem(newPath,[folderName])
@@ -202,6 +204,7 @@ class NavigationWidget(QWidget):
         if customItem.childCount() == 0:
             self.model.directory = customItem.path
             self.scrollController.UnpackDirectory()
+            self.topWidget.UpdateDirectoryInfo(customItem.path)
         else:
             pass
 
